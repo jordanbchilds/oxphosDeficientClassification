@@ -8,7 +8,7 @@ library("data.table")
 library("rstan")
 library("stringr")
 
-folderName = "Output_gamma01"
+folderName = "Output"
 
 dir.create(file.path(folderName), showWarnings = FALSE)
 
@@ -58,8 +58,7 @@ cl  = makeCluster(ncores)
     data_list,
     stan_inference, 
     warmup=40000, 
-    iter=45000,
-    parameterVals = list(tau_def=0.1))
+    iter=45000))
 }
 stopCluster(cl)
 
