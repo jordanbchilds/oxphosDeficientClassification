@@ -8,15 +8,17 @@ library("data.table")
 library("rstan")
 library("stringr")
 
-folderName = "Output_widePrior"
+dFlation =  5 # 5
+tauFlation = 5 # 5
 
-dir.create(file.path(folderName), showWarnings = FALSE)
+outputFolder = file.path("..", "Output", "bayesInference_widePrior")
+dir.create(outputFolder, showWarnings = FALSE)
 
 mitochan = "VDAC"
 channels = c("NDUFB8", "CYB", "MTCO1")
 nChan = length(channels)
 
-raw_data = read.csv("../Data_prepped.csv", header=TRUE)
+raw_data = read.csv(file.path("..", "Data", "Data_prepped.csv"), header=TRUE)
 
 raw_data = raw_data[,c("ID", "patient_id", mitochan, channels)]
 colnames(raw_data) = c("fibreID", "sampleID", mitochan, channels)
@@ -32,10 +34,7 @@ sbjIDs = unique(data$sampleID)
 ctrlIDs = grep("C", sbjIDs, value=TRUE)
 ptsIDs = sbjIDs[!(sbjIDs %in% ctrlIDs)]
 
-nChains = 10
-
-dFlation = 5
-tauFlation = 5
+nChains = 1 # 10
 
 sampleList = list("NDUFB8" = ptsIDs,
                   "MTCO1" = ptsIDs, 
@@ -93,8 +92,8 @@ for (chan in channels) {
       cl,
       data_list,
       stan_inference, 
-      warmup=20000, 
-      iter=21000,
+      warmup=10, # 20000, 
+      iter=15, # 21000,
       parameterVals = list(prec_mu_m=prec_mu_m,
                            prec_mu_c=prec_mu_c, 
                            shape_tau=shape_tau,
@@ -107,7 +106,7 @@ for (chan in channels) {
   stopCluster(cl)
   
   for( rt in names(output) ){
-    list_saver(output[[rt]], file.path(folderName, rt), rootSep="__")
+    list_saver(output[[rt]], file.path(outputFolder, rt), rootSep="__")
   }
 }
 

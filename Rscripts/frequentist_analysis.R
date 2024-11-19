@@ -1,12 +1,16 @@
-#
+library("tidyr")
+# ------------------------------------------------------------------------------
 # FREQUENTIST LINEAR REGRESSION 
-#
+# ------------------------------------------------------------------------------
+
+dir.create(file.path("..", "Output"), showWarnings = FALSE)
+dir.create(file.path("..", "Output", "frequentistAnalysis"), showWarnings = FALSE)
 
 mitochan = "VDAC"
 channels = c("NDUFB8", "CYB", "MTCO1")
 nChan = length(channels)
 
-raw_data = read.csv("../Data_prepped.csv", header=TRUE)
+raw_data = read.csv(file.path("..", "Data", "Data_prepped.csv"), header=TRUE)
 
 raw_data = raw_data[,c("ID", "patient_id", mitochan, channels)]
 colnames(raw_data) = c("fibreID", "sampleID", mitochan, channels)
@@ -59,12 +63,12 @@ for (chan in channels) {
   synDF = data.frame(mitochan=xSyn)
   predInterval = as.data.frame( predict.lm(mod, newdata=synDF, interval="prediction") )
   predInterval$mitochan = xSyn
-  write.table(predInterval, file=file.path("Output", "frequentist_linReg", paste0(chan, "__POSTPRED.txt")),
+  write.table(predInterval, file=file.path("../Output", "frequentistAnalysis", paste0(chan, "__POSTPRED.txt")),
               col.names=TRUE, row.names=FALSE, sep="\t")
 }
 
 
-write.table(dataWide, file="Output/frequentist_linReg/allData__CLASS.txt", 
+write.table(dataWide, file=file.path("..", "Data", "data_prepped_freqClassif.txt"), 
             col.names=TRUE, row.names=FALSE, sep="\t")
 
 

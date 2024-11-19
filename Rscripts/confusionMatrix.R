@@ -3,7 +3,7 @@ mitochan = "VDAC"
 channels = c("NDUFB8", "CYB", "MTCO1")
 nChan = length(channels)
 
-raw_data = read.csv(file.path("..", "..", "Data_prepped.csv"), header=TRUE)
+raw_data = read.csv(file.path("..", "Data", "Data_prepped.csv"), header=TRUE)
 
 raw_data = raw_data[,c("ID", "patient_id", mitochan, channels)]
 colnames(raw_data) = c("fibreID", "sampleID", mitochan, channels)
@@ -37,11 +37,10 @@ BayesProbabilityCalculator = function (dataPoint, post, gamma=0.0001) {
 
 data$Classification = NA
 
-
-freqClass_fn = file.path("..", "Output", "frequentist_linReg", "allData__CLASS.txt")
+freqClass_fn = file.path("..", "Output", "frequentistAnalysis", "allData__CLASS.txt")
 freqClass = as.data.frame( fread( freqClass_fn ) )
 
-manualClass_fn = file.path("..", "..", "dat_with_class_prepped.txt")
+manualClass_fn = file.path("..", "Data", "data_prepped_manualClassif.txt")
 manualClass = as.data.frame( fread( manualClass_fn ) )
 
 ### --- --- ---
@@ -56,7 +55,7 @@ for (patID in ptsIDs) {
     manualClass_patChan = manualClass_tmp[order(manualClass_tmp$fibreID), ]
     
     tt = table(freqClass_patChan[,paste0(chan, "_class")], manualClass_patChan$classJOINT)
-    print (chan)
+    print (paste(patID, chan))
     print (tt)
     print ("-----------------")
     print ("-----------------")
@@ -67,7 +66,7 @@ for (patID in ptsIDs) {
 ### --- --- ---
 ### confusion matrix - FREQUENTIST
 ### --- --- ---
-bayesClass = as.data.frame( fread( file.path( postFolder, "data_prepped_withClassif.txt" ) ) )
+bayesClass = as.data.frame( fread( file.path("..", "Data", "data_prepped_bayesClassif.txt" ) ) )
 
 for (patID in ptsIDs) {
   for (chan in channels) {
@@ -79,7 +78,7 @@ for (patID in ptsIDs) {
     manualClass_patChan = manualClass_tmp[order(manualClass_tmp$fibreID), ]
     
     tt = table(bayesClass_patChan$classif, manualClass_patChan$classJOINT)
-    print (chan)
+    print (paste(patID, chan))
     print (tt)
     print ("-----------------")
     print ("-----------------")
@@ -87,7 +86,5 @@ for (patID in ptsIDs) {
   }
 }
 
-head(bayesClass_patChan)
-dim(bayesClass_patChan)
 
 

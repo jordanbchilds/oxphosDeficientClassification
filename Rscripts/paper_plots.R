@@ -1,25 +1,27 @@
 
 
-# install.packages(c("data.table", "dplyr", "readr", "tidyr", "plyr", "devtools"))
+# install.packages(c("data.table", "dplyr", "readr", "tidyr", "HDInterval", "devtools"))
 library("data.table")
 library("dplyr")
 library("readr")
 library("tidyr")
+library("HDInterval")
 library("devtools")
+
 
 install_github("jordanbchilds/analysis2Dmito")
 library("analysis2Dmito")
 
 # --- getting data
 
-outputFolder = file.path("..", "OutputMaxESS", "stan_sampler")
-outputFolderFreq = file.path("..", "Output", "frequentist_linReg")
+outputFolder = file.path("..", "Output", "bayesMaxESS")
+outputFolderFreq = file.path("..", "Output", "frequentistAnalysis")
 
 mitochan = "VDAC"
 channels = c("NDUFB8", "CYB", "MTCO1")
 nChan = length(channels)
 
-raw_data = read.csv(file.path("..", "..", "Data_prepped.csv"), header=TRUE)
+raw_data = read.csv(file.path("..", "Data", "Data_prepped.csv"), header=TRUE)
 
 raw_data = raw_data[,c("ID", "patient_id", mitochan, channels)]
 colnames(raw_data) = c("fibreID", "sampleID", mitochan, channels)
@@ -58,11 +60,11 @@ tiff(file.path("..", "Figures",  "TIFF", "pat_example.tiff"),
     points( data[data$sampleID==pat & data$Channel==mitochan, "Value"],
             data[data$sampleID==pat & data$Channel==chan, "Value"],
             cex=0.5,
-            pch=21, col=alphaCol(0.1, "hotpink"), bg=alphaCol(0.1, "hotpink"))
+            pch=21, col=alphaCol("hotpink", 0.1), bg=alphaCol("hotpink", 0.1))
     
     if(chan == channels[1])
       legend("topleft", 
-             col=c(alphaBlack(0.7), alphaCol(0.7, "hotpink")), 
+             col=c(alphaBlack(0.7), alphaCol("hotpink", 0.7)), 
              pch=20, 
              legend=c("Control", "patient"))
   }
@@ -89,11 +91,11 @@ png(file.path("..", "Figures",  "PNG", "pat_example.png"),
     points( data[data$sampleID==pat & data$Channel==mitochan, "Value"],
             data[data$sampleID==pat & data$Channel==chan, "Value"],
             cex=0.5,
-            pch=21, col=alphaCol(0.1, "hotpink"), bg=alphaCol(0.1, "hotpink"))
+            pch=21, col=alphaCol("hotpink", 0.1), bg=alphaCol("hotpink", 0.1))
     
     if(chan == channels[1])
       legend("topleft", 
-             col=c(alphaBlack(0.7), alphaCol(0.7, "hotpink")), 
+             col=c(alphaBlack(0.7), alphaCol("hotpink", 0.7)), 
              pch=20, 
              legend=c("Control", "patient"))
   }
@@ -106,9 +108,11 @@ dev.off()
 # ------------------------------
 patID = "P09"
 
-mdat = as.data.frame( fread( file.path("..", "..", "dat_with_class_prepped.txt") ) )
+manualDat = as.data.frame( fread( file.path("..", "Data", "data_prepped_manualClassif.txt") ) )
+manualDat_pat = manualDat[ manualDat$sampleID==patID, ]
 
-mdat_pat = mdat[ mdat$sampleID==patID, ]
+frequentistDat = as.data.frame( fread (file.path("..", "Data", "data_prepped_freqClassif.txt") ) )
+frequentistDat_pat = frequentistDat[ frequentistDat$sbjType=="control" | frequentistDat$sampleID==patID, ]
 
 tiff(file.path("..", "Figures",  "TIFF", "freq_example.tiff"),
      width=2250, height=900, units="px", res=300, pointsize=13,
@@ -119,30 +123,30 @@ tiff(file.path("..", "Figures",  "TIFF", "freq_example.tiff"),
   
   op = par(cex.lab=1.3, cex.axis=1.3, mfrow=c(1,3), mar=c(4,4,1,0.5))
   for( chan in channels ){
-    freq_class = as.data.frame( fread( file.path(outputFolderFreq, paste0(chan, "__", pat, "__CLASSIF.txt") ) ) )
     freq_postpred = as.data.frame( fread(file.path(outputFolderFreq, paste0(chan, "__POSTPRED.txt" ))))
     
     xlm = range( data[data$sampleID%in% c(ctrlIDs, pat) & data$Channel==mitochan, "Value"] ) + c(0,0.5)
     ylm = range( data[data$sampleID%in% c(ctrlIDs, pat) & data$Channel!=mitochan, "Value"] ) + c(0,0.5)
     
-    pi_est = round(colMeans(freq_class), 3)
+    freqClass = as.numeric(frequentistDat_pat[frequentistDat_pat$sampleID==patID, paste0(chan, "_class")])
+    pi_est = round(mean(freqClass), 3)
     
     plot(NA, xlim=xlm, ylim=ylm, 
          xlab=paste0("log(", mitochan,")"), ylab=paste0("log(", chan, ")"),
          main=bquote(pi*"="*.(pi_est)))
-    points( data[data$sampleID%in% ctrlIDs & data$Channel==mitochan, "Value"],
-            data[data$sampleID%in% ctrlIDs & data$Channel==chan, "Value"],
+    points( frequentistDat_pat[frequentistDat_pat$sbjType=="control", mitochan],
+            frequentistDat_pat[frequentistDat_pat$sbjType=="control", chan],
             pch=21, col=alphaBlack(0.05), bg=alphaBlack(0.05), cex=0.5)
     
-    points( data[data$sampleID==pat & data$Channel==mitochan, "Value"],
-            data[data$sampleID==pat & data$Channel==chan, "Value"],
-            pch=21, col=colVec[freq_class[[1]]+1], bg=colVec[freq_class[[1]]+1],
+    points( frequentistDat_pat[frequentistDat_pat$sampleID==patID, mitochan],
+            frequentistDat_pat[frequentistDat_pat$sampleID==patID, chan],
+            pch=21, col=colVec[freqClass+1], bg=colVec[freqClass+1],
             cex=0.5)
     
-    manDef_cellID = mdat_pat[ mdat_pat$Channel==chan & mdat_pat$classJOINT==1, "fibreID"]
+    manDef_cellID = manualDat_pat[ manualDat_pat$Channel==chan & manualDat_pat$classJOINT==1, "fibreID"]
     
-    manDef_x = mdat_pat[ mdat_pat$cell_id%in%manDef_cellID & mdat_pat$Channel==mitochan, "Value"]
-    manDef_y = mdat_pat[ mdat_pat$cell_id%in%manDef_cellID & mdat_pat$Channel==chan, "Value"]
+    manDef_x = manualDat_pat[ manualDat_pat$cell_id%in%manDef_cellID & manualDat_pat$Channel==mitochan, "Value"]
+    manDef_y = manualDat_pat[ manualDat_pat$cell_id%in%manDef_cellID & manualDat_pat$Channel==chan, "Value"]
     
     points( log(manDef_x), log(manDef_y), pch=20, cex=0.3, col="yellow")
     
@@ -155,14 +159,12 @@ tiff(file.path("..", "Figures",  "TIFF", "freq_example.tiff"),
     
     if( chan == channels[1] ) {
       legend("topleft", 
-             col=c(alphaBlack(0.7), alphaBlue(0.7), alphaRed(0.7), alphaCol(0.7, name="yellow")),
+             col=c(alphaBlack(0.7), alphaBlue(0.7), alphaRed(0.7), alphaCol("yellow", 0.7)),
              pch=20, 
              legend=c("Control", "Healthy", "Deficient", "Manual"),
              bg="transparent", 
              box.col=alphaBlack(0.0))
     }
-    
-    
   }
   par(op)
 }
@@ -171,36 +173,36 @@ dev.off()
 png(file.path("..", "Figures",  "PNG", "freq_example.png"), 
      width=2250, height=900, units="px", res=300, pointsize=13,
      type="quartz")
-{{
+{
   pat = "P09"
   colVec = c(alphaBlue(0.5), alphaRed(0.5))
   
   op = par(cex.lab=1.3, cex.axis=1.3, mfrow=c(1,3), mar=c(4,4,1,0.5))
   for( chan in channels ){
-    freq_class = as.data.frame( fread( file.path(outputFolderFreq, paste0(chan, "__", pat, "__CLASSIF.txt") ) ) )
     freq_postpred = as.data.frame( fread(file.path(outputFolderFreq, paste0(chan, "__POSTPRED.txt" ))))
     
     xlm = range( data[data$sampleID%in% c(ctrlIDs, pat) & data$Channel==mitochan, "Value"] ) + c(0,0.5)
     ylm = range( data[data$sampleID%in% c(ctrlIDs, pat) & data$Channel!=mitochan, "Value"] ) + c(0,0.5)
     
-    pi_est = round(colMeans(freq_class), 3)
+    freqClass = as.numeric(frequentistDat_pat[frequentistDat_pat$sampleID==patID, paste0(chan, "_class")])
+    pi_est = round(mean(freqClass), 3)
     
     plot(NA, xlim=xlm, ylim=ylm, 
          xlab=paste0("log(", mitochan,")"), ylab=paste0("log(", chan, ")"),
          main=bquote(pi*"="*.(pi_est)))
-    points( data[data$sampleID%in% ctrlIDs & data$Channel==mitochan, "Value"],
-            data[data$sampleID%in% ctrlIDs & data$Channel==chan, "Value"],
+    points( frequentistDat_pat[frequentistDat_pat$sbjType=="control", mitochan],
+            frequentistDat_pat[frequentistDat_pat$sbjType=="control", chan],
             pch=21, col=alphaBlack(0.05), bg=alphaBlack(0.05), cex=0.5)
     
-    points( data[data$sampleID==pat & data$Channel==mitochan, "Value"],
-            data[data$sampleID==pat & data$Channel==chan, "Value"],
-            pch=21, col=colVec[freq_class[[1]]+1], bg=colVec[freq_class[[1]]+1],
+    points( frequentistDat_pat[frequentistDat_pat$sampleID==patID, mitochan],
+            frequentistDat_pat[frequentistDat_pat$sampleID==patID, chan],
+            pch=21, col=colVec[freqClass+1], bg=colVec[freqClass+1],
             cex=0.5)
     
-    manDef_cellID = mdat_pat[ mdat_pat$Channel==chan & mdat_pat$classJOINT==1, "fibreID"]
+    manDef_cellID = manualDat_pat[ manualDat_pat$Channel==chan & manualDat_pat$classJOINT==1, "fibreID"]
     
-    manDef_x = mdat_pat[ mdat_pat$cell_id%in%manDef_cellID & mdat_pat$Channel==mitochan, "Value"]
-    manDef_y = mdat_pat[ mdat_pat$cell_id%in%manDef_cellID & mdat_pat$Channel==chan, "Value"]
+    manDef_x = manualDat_pat[ manualDat_pat$cell_id%in%manDef_cellID & manualDat_pat$Channel==mitochan, "Value"]
+    manDef_y = manualDat_pat[ manualDat_pat$cell_id%in%manDef_cellID & manualDat_pat$Channel==chan, "Value"]
     
     points( log(manDef_x), log(manDef_y), pch=20, cex=0.3, col="yellow")
     
@@ -213,43 +215,40 @@ png(file.path("..", "Figures",  "PNG", "freq_example.png"),
     
     if( chan == channels[1] ) {
       legend("topleft", 
-             col=c(alphaBlack(0.7), alphaBlue(0.7), alphaRed(0.7), alphaCol(0.7, name="yellow")),
+             col=c(alphaBlack(0.7), alphaBlue(0.7), alphaRed(0.7), alphaCol("yellow", 0.7)),
              pch=20, 
              legend=c("Control", "Healthy", "Deficient", "Manual"),
              bg="transparent", 
              box.col=alphaBlack(0.0))
     }
-    
-    
   }
   par(op)
-}}
+}
 dev.off()
 
 # --------------------------------
 # --- bayes classification example
 # --------------------------------
-pat = "P09"
+patID = "P09"
 
-mdat = as.data.frame( fread( file.path("..", "..", "dat_with_class_prepped.txt") ) )
-mdat_pat = mdat[ mdat$patient_id==pat, ]
+manualDat = as.data.frame( fread( file.path("..", "Data", "data_prepped_manualClassif.txt") ) )
+manualDat_pat = manualDat[ manualDat$sampleID==pat, ]
 
 tiff(file.path("..", "Figures",  "TIFF", "bayes_example.tiff"), 
      width=2250, height=900, units="px", res=300, pointsize=13, 
      type="cairo")
 {
-  pat = "P09"
   op = par(cex.lab=1.3, cex.axis=1.3, mfrow=c(1,3), mar=c(4,4,1,0.5))
   for (chan in channels) {
-    bayes_class_mat = as.matrix( fread( file.path(outputFolder , paste0(chan, "__", pat, "__CLASSIF.txt") )) )
+    bayes_class_mat = as.matrix( fread( file.path(outputFolder , paste0(chan, "__", patID, "__CLASSIF.txt") )) )
     bayes_class = colMeans( bayes_class_mat )
     
-    bayes_postpred = as.data.frame(fread(file.path(outputFolder, paste0(chan, "__", pat, "__POSTPRED.txt") )))
+    bayes_postpred = as.data.frame(fread(file.path(outputFolder, paste0(chan, "__", patID, "__POSTPRED.txt") )))
     
-    xlm = range( data[data$sampleID%in% c(ctrlIDs, pat) & data$Channel==mitochan, "Value"] ) + c(0,0.5)
-    ylm = range( data[data$sampleID%in% c(ctrlIDs, pat) & data$Channel!=mitochan, "Value"] ) + c(0,0.5)
+    xlm = range( data[data$sampleID%in% c(ctrlIDs, patID) & data$Channel==mitochan, "Value"] ) + c(0,0.5)
+    ylm = range( data[data$sampleID%in% c(ctrlIDs, patID) & data$Channel!=mitochan, "Value"] ) + c(0,0.5)
     
-    pi_est = round( colMeans( fread( file.path(outputFolder, paste0(chan, "__", pat, "__POST.txt" )))[, "probdiff"] ), 3)
+    pi_est = round( colMeans( fread( file.path(outputFolder, paste0(chan, "__", patID, "__POST.txt" )))[, "probdiff"] ), 3)
     
     plot(NA, xlim=xlm, ylim=ylm, 
          xlab=paste0("log(", mitochan,")"), ylab=paste0("log(", chan, ")"),
@@ -258,14 +257,14 @@ tiff(file.path("..", "Figures",  "TIFF", "bayes_example.tiff"),
             data[data$sampleID%in% ctrlIDs & data$Channel==chan, "Value"],
             pch=20, col=alphaBlack(0.05), cex=0.5)
     
-    points( data[data$sampleID==pat & data$Channel==mitochan, "Value"],
-            data[data$sampleID==pat & data$Channel==chan, "Value"],
+    points( data[data$sampleID==patID & data$Channel==mitochan, "Value"],
+            data[data$sampleID==patID & data$Channel==chan, "Value"],
             pch=20, col=classcols(bayes_class, alphaLevel=0.5), cex=0.5)
     
-    manDef_cellID = mdat_pat[ mdat_pat$channel==chan & mdat_pat$classJOINT==1, "fibreID"]
+    manDef_cellID = manualDat_pat[ manualDat_pat$channel==chan & manualDat_pat$classJOINT==1, "fibreID"]
     
-    manDef_x = mdat_pat[ mdat_pat$fibreID%in%manDef_cellID & mdat_pat$Channel==mitochan, "Value"]
-    manDef_y = mdat_pat[ mdat_pat$fibreID%in%manDef_cellID & mdat_pat$Channel==chan, "Value"]
+    manDef_x = manualDat_pat[ manualDat_pat$fibreID%in%manDef_cellID & manualDat_pat$Channel==mitochan, "Value"]
+    manDef_y = manualDat_pat[ manualDat_pat$fibreID%in%manDef_cellID & manualDat_pat$Channel==chan, "Value"]
     
     points( log(manDef_x), log(manDef_y), pch=20, cex=0.3, col="yellow")
     
@@ -278,7 +277,7 @@ tiff(file.path("..", "Figures",  "TIFF", "bayes_example.tiff"),
     
     if( chan == channels[1] )
       legend("topleft", 
-             col=c(alphaBlack(0.7), alphaBlue(0.7), alphaRed(0.7), alphaCol(0.7, name="yellow")),
+             col=c(alphaBlack(0.7), alphaBlue(0.7), alphaRed(0.7), alphaCol("yellow", 0.7)),
              pch=20, 
              legend=c("Control", "Healthy", "Deficient", "Manual"),
              bg="transparent", 
@@ -291,19 +290,18 @@ dev.off()
 png(file.path("..", "Figures",  "PNG", "bayes_example.png"),
      width=2250, height=900, units="px", res=300, pointsize=13, 
      type="cairo")
-{{
-  pat = "P09"
+{
   op = par(cex.lab=1.3, cex.axis=1.3, mfrow=c(1,3), mar=c(4,4,1,0.5))
   for (chan in channels) {
-    bayes_class_mat = as.matrix( fread( file.path(outputFolder , paste0(chan, "__", pat, "__CLASSIF.txt") )) )
+    bayes_class_mat = as.matrix( fread( file.path(outputFolder , paste0(chan, "__", patID, "__CLASSIF.txt") )) )
     bayes_class = colMeans( bayes_class_mat )
     
-    bayes_postpred = as.data.frame(fread(file.path(outputFolder, paste0(chan, "__", pat, "__POSTPRED.txt") )))
+    bayes_postpred = as.data.frame(fread(file.path(outputFolder, paste0(chan, "__", patID, "__POSTPRED.txt") )))
     
-    xlm = range( data[data$sampleID%in% c(ctrlIDs, pat) & data$Channel==mitochan, "Value"] ) + c(0,0.5)
-    ylm = range( data[data$sampleID%in% c(ctrlIDs, pat) & data$Channel!=mitochan, "Value"] ) + c(0,0.5)
+    xlm = range( data[data$sampleID%in% c(ctrlIDs, patID) & data$Channel==mitochan, "Value"] ) + c(0,0.5)
+    ylm = range( data[data$sampleID%in% c(ctrlIDs, patID) & data$Channel!=mitochan, "Value"] ) + c(0,0.5)
     
-    pi_est = round( colMeans( fread( file.path(outputFolder, paste0(chan, "__", pat, "__POST.txt" )))[, "probdiff"] ), 3)
+    pi_est = round( colMeans( fread( file.path(outputFolder, paste0(chan, "__", patID, "__POST.txt" )))[, "probdiff"] ), 3)
     
     plot(NA, xlim=xlm, ylim=ylm, 
          xlab=paste0("log(", mitochan,")"), ylab=paste0("log(", chan, ")"),
@@ -312,14 +310,14 @@ png(file.path("..", "Figures",  "PNG", "bayes_example.png"),
             data[data$sampleID%in% ctrlIDs & data$Channel==chan, "Value"],
             pch=20, col=alphaBlack(0.05), cex=0.5)
     
-    points( data[data$sampleID==pat & data$Channel==mitochan, "Value"],
-            data[data$sampleID==pat & data$Channel==chan, "Value"],
+    points( data[data$sampleID==patID & data$Channel==mitochan, "Value"],
+            data[data$sampleID==patID & data$Channel==chan, "Value"],
             pch=20, col=classcols(bayes_class, alphaLevel=0.5), cex=0.5)
     
-    manDef_cellID = mdat_pat[ mdat_pat$channel==chan & mdat_pat$classJOINT==1, "fibreID"]
+    manDef_cellID = manualDat_pat[ manualDat_pat$channel==chan & manualDat_pat$classJOINT==1, "fibreID"]
     
-    manDef_x = mdat_pat[ mdat_pat$fibreID%in%manDef_cellID & mdat_pat$Channel==mitochan, "Value"]
-    manDef_y = mdat_pat[ mdat_pat$fibreID%in%manDef_cellID & mdat_pat$Channel==chan, "Value"]
+    manDef_x = manualDat_pat[ manualDat_pat$fibreID%in%manDef_cellID & manualDat_pat$Channel==mitochan, "Value"]
+    manDef_y = manualDat_pat[ manualDat_pat$fibreID%in%manDef_cellID & manualDat_pat$Channel==chan, "Value"]
     
     points( log(manDef_x), log(manDef_y), pch=20, cex=0.3, col="yellow")
     
@@ -332,14 +330,14 @@ png(file.path("..", "Figures",  "PNG", "bayes_example.png"),
     
     if( chan == channels[1] )
       legend("topleft", 
-             col=c(alphaBlack(0.7), alphaBlue(0.7), alphaRed(0.7), alphaCol(0.7, name="yellow")),
+             col=c(alphaBlack(0.7), alphaBlue(0.7), alphaRed(0.7), alphaCol("yellow", 0.7)),
              pch=20, 
              legend=c("Control", "Healthy", "Deficient", "Manual"),
              bg="transparent", 
              box.col=alphaBlack(0.0))
   }
   par(op)
-}}
+}
 dev.off()
 
 # -------------------------------
@@ -477,7 +475,8 @@ dev.off()
 
 
 # --- better comparison of classifs
-mdat = as.data.frame( fread( file.path("..", "..", "dat_with_class_prepped.txt") ) )
+manualDat = as.data.frame( fread( file.path("..", "Data", "data_prepped_manualClassif.txt") ) )
+freqDat = as.data.frame( fread( file.path("..", "Data", "data_prepped_freqClassif.txt")))
 
 bayes_diff = list()
 freq_diff = list()
@@ -490,15 +489,14 @@ for (pat in ptsIDs) {
   for( chan in channels ){
     root = paste0(chan, "__", pat)
     
-    fn_post = file.path("..", folder, outputFolder, paste0(root, "__POST.txt"))
+    fn_post = file.path("..", "Output", "bayesMaxESS", paste0(root, "__POST.txt"))
     probdiff_post = fread( fn_post )$probdiff
     
-    man_est = mean( mdat[ mdat$sampleID==pat & mdat$Channel==chan, ]$classJOINT  )
+    man_est = mean( manualDat[ manualDat$sampleID==pat & manualDat$Channel==chan, ]$classJOINT  )
     
     diff_vec = probdiff_post - man_est
     
-    fn_freq = file.path("..", "Output", "frequentist_linReg", paste0(root, "__CLASSIF.txt"))
-    freq_class = fread( fn_freq )[[1]]
+    freq_class = freqDat[freqDat$sampleID==patID, paste0(chan, "_class")]
     
     bayes_diff[[root]] = diff_vec
     freq_diff[[root]] = mean(freq_class) - man_est
@@ -513,11 +511,11 @@ tiff(file.path("..", "Figures",  "TIFF", "proportion_comparison.tiff"),
      width=2250, height=1900, units="px", res=300, pointsize=13,
      type="cairo")
 {
-  op = par(cex.lab=1.3, cex.axis=1.3, mar=c(4,4,1,0.5), xpd=FALSE)
+  op = par(mfrow=c(1,1), cex.lab=1.3, cex.axis=1.3, mar=c(4,4,1,0.5), xpd=FALSE)
   
-  colVec = c(alphaCol(0.01, name="lightseagreen"), 
-             alphaCol(0.01, name="deeppink3"), 
-             alphaCol(0.01, name="darkorange"))
+  colVec = c(alphaCol("lightseagreen", 0.01), 
+             alphaCol("deeppink3", 0.01), 
+             alphaCol("darkorange", 0.01))
   
   myAt = c(1:44)[ 1:44 %% 4 !=0 ]
   myTicks = 4* 1:11 - 2
@@ -535,9 +533,9 @@ tiff(file.path("..", "Figures",  "TIFF", "proportion_comparison.tiff"),
   axis(side=1, at=myTicks, labels=ptsIDs)
   points(myAt, unlist(freq_diff), pch=24, cex=1.2,
          col="black",
-         bg=rep(c(alphaCol(0.9, name="lightseagreen"), 
-                   alphaCol(0.9, name="deeppink3"), 
-                   alphaCol(0.9, name="darkorange")), length(freq_diff)))
+         bg=rep(c(alphaCol("lightseagreen", 0.9), 
+                   alphaCol("deeppink3", 0.9), 
+                   alphaCol("darkorange", 0.9)), length(freq_diff)))
   #points(x=myAt[unlist(nonZero)], y=rep(-0.1, sum(unlist(nonZero))), pch=8)
   legend(x=0, y=1, 
          bg="transparent",
@@ -545,9 +543,9 @@ tiff(file.path("..", "Figures",  "TIFF", "proportion_comparison.tiff"),
          legend=channels, 
          text.width = 10,
          pch=20, 
-         col=c(alphaCol(0.7, name="lightseagreen"), 
-               alphaCol(0.7, name="deeppink3"), 
-               alphaCol(0.7, name="darkorange")))
+         col=c(alphaCol("lightseagreen", 0.7), 
+               alphaCol("deeppink3", 0.7), 
+               alphaCol("darkorange", 0.7)))
   text(x=0, y=1.0, labels=c("Bayesian distribution"), pos=4)
   
   legend(x=12, y=1.0, 
@@ -557,9 +555,9 @@ tiff(file.path("..", "Figures",  "TIFF", "proportion_comparison.tiff"),
          text.width = 10,
          pch=24, 
          col="black",
-         pt.bg=c(alphaCol(0.7, name="lightseagreen"), 
-               alphaCol(0.7, name="deeppink3"), 
-               alphaCol(0.7, name="darkorange")) )
+         pt.bg=c(alphaCol("lightseagreen", 0.7), 
+               alphaCol("deeppink3", 0.7), 
+               alphaCol("darkorange", 0.7)) )
   text(x=12, y=1.0, labels=c("Frequentist point estimate"), pos=4)
 
   par(op)
@@ -570,11 +568,11 @@ png(file.path("..", "Figures",  "PNG", "proportion_comparison.png"),
      width=2250, height=1900, units="px", res=300, pointsize=13,
      type="cairo")
 {
-  op = par(cex.lab=1.3, cex.axis=1.3, mar=c(4,4,1,0.5), xpd=FALSE)
+  op = par(mfrow=c(1,1), cex.lab=1.3, cex.axis=1.3, mar=c(4,4,1,0.5), xpd=FALSE)
   
-  colVec = c(alphaCol(0.01, name="lightseagreen"), 
-             alphaCol(0.01, name="deeppink3"), 
-             alphaCol(0.01, name="darkorange"))
+  colVec = c(alphaCol("lightseagreen", 0.01), 
+             alphaCol("deeppink3", 0.01), 
+             alphaCol("darkorange", 0.01))
   
   myAt = c(1:44)[ 1:44 %% 4 !=0 ]
   myTicks = 4* 1:11 - 2
@@ -589,12 +587,12 @@ png(file.path("..", "Figures",  "PNG", "proportion_comparison.png"),
              xlab="Patient", ylab="Deficient Proportion", 
              col=rep(colVec, length(bayes_diff)), 
              at=myAt, xaxt="n", add=TRUE)
-  axis(side=1, at=myTicks, labels=ptsIDs, cex.axis=1.0)
+  axis(side=1, at=myTicks, labels=ptsIDs)
   points(myAt, unlist(freq_diff), pch=24, cex=1.2,
          col="black",
-         bg=rep(c(alphaCol(0.9, name="lightseagreen"), 
-                  alphaCol(0.9, name="deeppink3"), 
-                  alphaCol(0.9, name="darkorange")), length(freq_diff)))
+         bg=rep(c(alphaCol("lightseagreen", 0.9), 
+                  alphaCol("deeppink3", 0.9), 
+                  alphaCol("darkorange", 0.9)), length(freq_diff)))
   #points(x=myAt[unlist(nonZero)], y=rep(-0.1, sum(unlist(nonZero))), pch=8)
   legend(x=0, y=1, 
          bg="transparent",
@@ -602,9 +600,9 @@ png(file.path("..", "Figures",  "PNG", "proportion_comparison.png"),
          legend=channels, 
          text.width = 10,
          pch=20, 
-         col=c(alphaCol(0.7, name="lightseagreen"), 
-               alphaCol(0.7, name="deeppink3"), 
-               alphaCol(0.7, name="darkorange")))
+         col=c(alphaCol("lightseagreen", 0.7), 
+               alphaCol("deeppink3", 0.7), 
+               alphaCol("darkorange", 0.7)))
   text(x=0, y=1.0, labels=c("Bayesian distribution"), pos=4)
   
   legend(x=12, y=1.0, 
@@ -614,9 +612,9 @@ png(file.path("..", "Figures",  "PNG", "proportion_comparison.png"),
          text.width = 10,
          pch=24, 
          col="black",
-         pt.bg=c(alphaCol(0.7, name="lightseagreen"), 
-                 alphaCol(0.7, name="deeppink3"), 
-                 alphaCol(0.7, name="darkorange")) )
+         pt.bg=c(alphaCol("lightseagreen", 0.7), 
+                 alphaCol("deeppink3", 0.7), 
+                 alphaCol("darkorange", 0.7)) )
   text(x=12, y=1.0, labels=c("Frequentist point estimate"), pos=4)
   
   par(op)
@@ -624,20 +622,20 @@ png(file.path("..", "Figures",  "PNG", "proportion_comparison.png"),
 dev.off()
 
 # --- gamma comparison - MEAN ABSOLUTE DIFFERENCE
-mdat = as.data.frame( fread( file.path("../dat_with_class_prepped.txt") ) )
+manualDat = as.data.frame( fread( file.path("..", "Data", "data_prepped_manualClassif.txt") ) )
 
 mad = list()
 gamma_labs = c("0000001", "000001", "00001", "0001", "001", "01", "10")
 gamma_vals = c("0.000001", "0.00001", "0.0001", "0.001", "0.01", "0.1", "1.0")
 
 for (gam in gamma_labs) {
-  fldr = paste0("Output_gamma", gam)
+  fldr = paste0("bayesInference_gamma", gam)
   diffs = NULL
-  for( pat in ptsIDs ){
-    for( chan in channels ){
-      mclass = unlist( mdat[ mdat$channel==chan & mdat$patient_id==pat, "classJBC"] )
-      root = paste0(chan, "__", pat)
-      fn_post = file.path("OutputMaxESS", fldr, paste0(root, "__POST.txt"))
+  for (patID in ptsIDs) {
+    for (chan in channels) {
+      mclass = manualDat[ manualDat$Channel==chan & manualDat$sampleID==patID, "classJOINT"]
+      root = paste0(chan, "__", patID)
+      fn_post = file.path("..", "Output", fldr, paste0(root, "__POST.txt"))
       
       post = as.matrix( fread( fn_post) )
       diffs = c(diffs, abs(post[,"probdiff"] - mean(mclass)))
@@ -680,7 +678,7 @@ dev.off()
 # --- prior comparison against OG posterior
 # ----------------------------------------
 
-folders = c("Output_widePrior_new", "Output_narrowPrior")
+folders = c("bayesInference_widePrior", "bayesInference_narrowPrior")
 names(folders) = c("wide", "narrow")
 
 pis_diff = list()
@@ -699,7 +697,7 @@ for (pat in ptsIDs) {
       pi_post_two = as.matrix(fread(fn_post_two))[, "probdiff"]
       pis_diff[[pp]][[root]] = pi_post_og - pi_post_two
       HDI = hdi(pis_diff[[pp]][[root]], ci=0.99)
-      withinZero[[root]] = (0.0>HDI$CI_high) | (0.0<HDI$CI_low)
+      withinZero[[root]] = (0.0>HDI["upper"]) | (0.0<HDI["lower"])
     }
   }
 }
@@ -713,7 +711,7 @@ withinZeroDirect = list()
 for (root in names(pis_diff[["wide"]])) {
   diff = pis_diff[["wide"]][[root]] - pis_diff[["narrow"]][[root]]
   HDI = hdi(diff, ci=0.99)
-  withinZeroDirect[[root]] = (0.0<HDI$CI_low) | (0.0>HDI$CI_high)
+  withinZeroDirect[[root]] = (0.0<HDI["lower"]) | (0.0>HDI["upper"])
     
   ks_pValues[root] = ks.test(pis_diff[["wide"]][[root]], pis_diff[["narrow"]][[root]])$p.value
   
@@ -739,9 +737,9 @@ tiff(file.path("..", "Figures",  "TIFF", "prior_comparison.tff"),
 {
   op = par( mfrow=c(2,1) )
   
-  colVec = c(alphaCol(0.01, name="lightseagreen"), 
-             alphaCol(0.01, name="deeppink3"), 
-             alphaCol(0.01, name="darkorange"))
+  colVec = c(alphaCol("lightseagreen", 0.01), 
+             alphaCol("deeppink3", 0.01), 
+             alphaCol("darkorange", 0.01))
   
   myAt = c(1:44)[ 1:44 %% 4 !=0 ]
   myTicks = 4* 1:11 - 2
@@ -770,9 +768,9 @@ tiff(file.path("..", "Figures",  "TIFF", "prior_comparison.tff"),
     text(c(0,8,13), rep(0.15,3), 
          labels=channels, pos=4)
     points(c(0,8,13), rep(0.15,3), 
-           pch=20, col=c(alphaCol(0.7, name="lightseagreen"), 
-                         alphaCol(0.7, name="deeppink3"), 
-                         alphaCol(0.7, name="darkorange")))
+           pch=20, col=c(alphaCol("lightseagreen", 0.7), 
+                         alphaCol("deeppink3", 0.7), 
+                         alphaCol("darkorange", 0.7)))
     # legend(exact_xlim[2] + 2.0, exact_ylim[2], 
     #        legend=channels, 
     #        bg="transparent", 
@@ -814,9 +812,9 @@ png(file.path("..", "Figures",  "PNG", "prior_comparison.png"),
 {
   op = par( mfrow=c(2,1) )
   
-  colVec = c(alphaCol(0.01, name="lightseagreen"), 
-             alphaCol(0.01, name="deeppink3"), 
-             alphaCol(0.01, name="darkorange"))
+  colVec = c(alphaCol("lightseagreen", 0.01), 
+             alphaCol("deeppink3", 0.01), 
+             alphaCol("darkorange", 0.01))
   
   myAt = c(1:44)[ 1:44 %% 4 !=0 ]
   myTicks = 4* 1:11 - 2
@@ -845,9 +843,9 @@ png(file.path("..", "Figures",  "PNG", "prior_comparison.png"),
     text(c(0,8,13), rep(0.15,3), 
          labels=channels, pos=4)
     points(c(0,8,13), rep(0.15,3), 
-           pch=20, col=c(alphaCol(0.7, name="lightseagreen"), 
-                         alphaCol(0.7, name="deeppink3"), 
-                         alphaCol(0.7, name="darkorange")))
+           pch=20, col=c(alphaCol("lightseagreen", 0.7), 
+                         alphaCol("deeppink3", 0.7), 
+                         alphaCol("darkorange", 0.7)))
     # legend(exact_xlim[2] + 2.0, exact_ylim[2], 
     #        legend=channels, 
     #        bg="transparent", 
@@ -894,9 +892,9 @@ tiff(file.path("..", "Figures",  "TIFF", "allPost_classifs_1.tiff"),
   for (pat in ptsIDs[1:4]) {
     for (chan in channels) {
       root = paste0(chan, "__", pat)
-      fn_post = file.path(outputFolder, paste0(root, "__POST.txt"))
-      fn_postpred = file.path(outputFolder, paste0(root, "__POSTPRED.txt"))
-      fn_classif = file.path(outputFolder, paste0(root, "__CLASSIF.txt"))
+      fn_post = file.path("..", "Output", "bayesMaxESS", paste0(root, "__POST.txt"))
+      fn_postpred = file.path("..", "Output", "bayesMaxESS", paste0(root, "__POSTPRED.txt"))
+      fn_classif = file.path("..", "Output", "bayesMaxESS", paste0(root, "__CLASSIF.txt"))
       
       class_mats = as.matrix( fread(fn_classif) )
       class = colMeans( class_mats ) 
@@ -934,9 +932,9 @@ tiff(file.path("..", "Figures",  "TIFF", "allPost_classifs_2.tiff"),
   for( pat in ptsIDs[5:8] ){
     for( chan in channels ){
       root = paste0(chan, "__", pat)
-      fn_post = file.path(outputFolder, paste0(root, "__POST.txt"))
-      fn_postpred = file.path(outputFolder, paste0(root, "__POSTPRED.txt"))
-      fn_classif = file.path(outputFolder, paste0(root, "__CLASSIF.txt"))
+      fn_post = file.path("..", "Output", "bayesMaxESS", paste0(root, "__POST.txt"))
+      fn_postpred = file.path("..", "Output", "bayesMaxESS", paste0(root, "__POSTPRED.txt"))
+      fn_classif = file.path("..", "Output", "bayesMaxESS", paste0(root, "__CLASSIF.txt"))
       
       class_mats = as.matrix( fread(fn_classif) )
       class = colMeans( class_mats ) 
@@ -974,9 +972,9 @@ tiff(file.path("..", "Figures",  "TIFF", "allPost_classifs_3.tiff"),
   for( pat in ptsIDs[9:11] ){
     for( chan in channels ){
       root = paste0(chan, "__", pat)
-      fn_post = file.path(outputFolder, paste0(root, "__POST.txt"))
-      fn_postpred = file.path(outputFolder, paste0(root, "__POSTPRED.txt"))
-      fn_classif = file.path(outputFolder, paste0(root, "__CLASSIF.txt"))
+      fn_post = file.path("..", "Output", "bayesMaxESS", paste0(root, "__POST.txt"))
+      fn_postpred = file.path("..", "Output", "bayesMaxESS", paste0(root, "__POSTPRED.txt"))
+      fn_classif = file.path("..", "Output", "bayesMaxESS", paste0(root, "__CLASSIF.txt"))
       
       class_mats = as.matrix( fread(fn_classif) )
       class = colMeans( class_mats ) 
@@ -1014,9 +1012,9 @@ png(file.path("..", "Figures",  "PNG", "allPost_classifs_1.png"),
   for( pat in ptsIDs[1:4] ){
     for( chan in channels ){
       root = paste0(chan, "__", pat)
-      fn_post = file.path(outputFolder, paste0(root, "__POST.txt"))
-      fn_postpred = file.path(outputFolder, paste0(root, "__POSTPRED.txt"))
-      fn_classif = file.path(outputFolder, paste0(root, "__CLASSIF.txt"))
+      fn_post = file.path("..", "Output", "bayesMaxESS", paste0(root, "__POST.txt"))
+      fn_postpred = file.path("..", "Output", "bayesMaxESS", paste0(root, "__POSTPRED.txt"))
+      fn_classif = file.path("..", "Output", "bayesMaxESS", paste0(root, "__CLASSIF.txt"))
       
       class_mats = as.matrix( fread(fn_classif) )
       class = colMeans( class_mats ) 
@@ -1054,9 +1052,9 @@ png(file.path("..", "Figures",  "PNG", "allPost_classifs_2.png"),
   for( pat in ptsIDs[5:8] ){
     for( chan in channels ){
       root = paste0(chan, "__", pat)
-      fn_post = file.path(outputFolder, paste0(root, "__POST.txt"))
-      fn_postpred = file.path(outputFolder, paste0(root, "__POSTPRED.txt"))
-      fn_classif = file.path(outputFolder, paste0(root, "__CLASSIF.txt"))
+      fn_post = file.path("..", "Output", "bayesMaxESS", paste0(root, "__POST.txt"))
+      fn_postpred = file.path("..", "Output", "bayesMaxESS", paste0(root, "__POSTPRED.txt"))
+      fn_classif = file.path("..", "Output", "bayesMaxESS", paste0(root, "__CLASSIF.txt"))
       
       class_mats = as.matrix( fread(fn_classif) )
       class = colMeans( class_mats ) 
@@ -1094,9 +1092,9 @@ png(file.path("..", "Figures",  "PNG", "allPost_classifs_3.png"),
   for( pat in ptsIDs[9:11] ){
     for( chan in channels ){
       root = paste0(chan, "__", pat)
-      fn_post = file.path(outputFolder, paste0(root, "__POST.txt"))
-      fn_postpred = file.path(outputFolder, paste0(root, "__POSTPRED.txt"))
-      fn_classif = file.path(outputFolder, paste0(root, "__CLASSIF.txt"))
+      fn_post = file.path("..", "Output", "bayesMaxESS", paste0(root, "__POST.txt"))
+      fn_postpred = file.path("..", "Output", "bayesMaxESS", paste0(root, "__POSTPRED.txt"))
+      fn_classif = file.path("..", "Output", "bayesMaxESS", paste0(root, "__CLASSIF.txt"))
       
       class_mats = as.matrix( fread(fn_classif) )
       class = colMeans( class_mats ) 
@@ -1132,7 +1130,7 @@ bayes_post = list()
 for (pat in ptsIDs) {
   for (chan in channels) {
     root = paste0(chan, "__", pat)
-    fn_post = file.path(outputFolder, paste0(root, "__POST.txt"))
+    fn_post = file.path("..", "Output", "bayesMa", paste0(root, "__POST.txt"))
     probdiff_post = as.data.frame( fread( fn_post ))[,"probdiff"]
     bayes_post[[root]] = probdiff_post
   }
@@ -1142,11 +1140,11 @@ tiff(file.path("..", "Figures",  "TIFF", "piPost.tiff"),
      width=2250, height=1200, units="px", res=300, pointsize=13, 
      type="cairo")
 {
-  op = par(cex.lab=1.2, cex.axis=1.2, mar=c(4,4,1,0.5), xpd=FALSE)
+  op = par(mfrow=c(1,1), cex.lab=1.2, cex.axis=1.2, mar=c(4,4,1,0.5), xpd=FALSE)
   
-  colVec = c(alphaCol(0.01, name="lightseagreen"), 
-             alphaCol(0.01, name="deeppink3"), 
-             alphaCol(0.01, name="darkorange"))
+  colVec = c(alphaCol("lightseagreen", 0.01), 
+             alphaCol("deeppink3", 0.01), 
+             alphaCol("darkorange", 0.01))
   
   myAt = c(1:44)[ 1:44 %% 4 !=0 ]
   myTicks = 4* 1:11 - 2
@@ -1167,9 +1165,9 @@ tiff(file.path("..", "Figures",  "TIFF", "piPost.tiff"),
          box.col=alphaBlack(0.0),
          text.width = 10,
          pch=20, 
-         col=c(alphaCol(0.7, name="lightseagreen"), 
-               alphaCol(0.7, name="deeppink3"), 
-               alphaCol(0.7, name="darkorange")))
+         col=c(alphaCol("lightseagreen", 0.7), 
+               alphaCol("deeppink3", 0.7), 
+               alphaCol("darkorange", 0.7)))
   text(x=45, y=1.0, labels=c("Bayesian distribution"), pos=4)
   rect(xleft=45, xright=55.7, 
        ybottom=0.82, ytop=1.025, 
@@ -1182,11 +1180,11 @@ png(file.path("..", "Figures",  "PNG", "piPost.png"),
      width=2250, height=1200, units="px", res=300, pointsize=13, 
      type="cairo")
 {
-  op = par(cex.lab=1.2, cex.axis=1.2, mar=c(4,4,1,0.5), xpd=FALSE)
+  op = par(mfrow=c(1,1), cex.lab=1.2, cex.axis=1.2, mar=c(4,4,1,0.5), xpd=FALSE)
   
-  colVec = c(alphaCol(0.01, name="lightseagreen"), 
-             alphaCol(0.01, name="deeppink3"), 
-             alphaCol(0.01, name="darkorange"))
+  colVec = c(alphaCol("lightseagreen", 0.01), 
+             alphaCol("deeppink3", 0.01), 
+             alphaCol("darkorange", 0.01))
   
   myAt = c(1:44)[ 1:44 %% 4 !=0 ]
   myTicks = 4* 1:11 - 2
@@ -1207,9 +1205,9 @@ png(file.path("..", "Figures",  "PNG", "piPost.png"),
          box.col=alphaBlack(0.0),
          text.width = 10,
          pch=20, 
-         col=c(alphaCol(0.7, name="lightseagreen"), 
-               alphaCol(0.7, name="deeppink3"), 
-               alphaCol(0.7, name="darkorange")))
+         col=c(alphaCol("lightseagreen", 0.7), 
+               alphaCol("deeppink3", 0.7), 
+               alphaCol("darkorange", 0.7)))
   text(x=45, y=1.0, labels=c("Bayesian distribution"), pos=4)
   rect(xleft=45, xright=55.7, 
        ybottom=0.82, ytop=1.025, 
@@ -1231,8 +1229,8 @@ tiff(file.path("..", "Figures",  "TIFF", "narrow_wide_priors.tiff"),
   pat = "P09"
   chan = "NDUFB8"
   filename = paste0(chan, "__", pat, "__PRIOR.txt")
-  fn_prior_n = file.path(gsub(basename(outputFolder), "Output_narrowPrior_new", outputFolder), filename)
-  fn_prior_w = file.path(gsub(basename(outputFolder), "Output_widePrior_new", outputFolder), filename)
+  fn_prior_n = file.path(gsub(basename(outputFolder), "bayesInference_narrowPrior", outputFolder), filename)
+  fn_prior_w = file.path(gsub(basename(outputFolder), "bayesInference_widePrior", outputFolder), filename)
   
   prior_n = as.matrix( fread(fn_prior_n) )
   prior_w = as.matrix( fread(fn_prior_w) )
@@ -1298,95 +1296,6 @@ png(file.path("..", "Figures",  "PNG", "narrow_wide_priors.png"),
 }
 dev.off()
 
-pdf(file.path("..", "Figures",  "PDF", "pi_post_comparison.pdf"), 
-    width=12, height=6)
-{
-  op = par(mfrow=c(1,3))
-  for(pat in ptsIDs){
-    for(chan in channels){
-      file = paste0(chan, "__", pat, "__POST.txt")
-      
-      fn_post_n = file.path(folder, "Output_narrowPrior_new", file)
-      fn_post_w = file.path(folder, "Output_widePrior_new", file)
-      
-      post_n = as.matrix( fread(fn_post_n) )
-      post_w = as.matrix( fread(fn_post_w) )
-      
-      dens_n = density( post_n[,"probdiff"] )
-      dens_w = density( post_w[,"probdiff"] )
-      
-      plot(NA, 
-           xlim=range(c(dens_n$x, dens_w$x)), ylim=c(0, max(c(dens_n$y, dens_w$y))),
-           xlab=bquote(pi), ylab="Density")
-      lines(dens_n, col="brown3", lwd=2)
-      lines(dens_w, col="darkolivegreen", lwd=2)
-    }
-  }
-  par(op)
-}
-dev.off()
-
-# ------------------------------
-# --- bayesian classif vs manual
-# ------------------------------
-mdat = as.data.frame( fread( file.path("..", "..", "dat_with_class_prepped.txt") ) )
-
-png(file.path("..", "Figures",  "PNG", "diff_in_class.png"), 
-    width=2250, height=1200, units="px", res=300, pointsize=13, 
-    type="cairo")
-{
-  pat = "P09"
-  op = par(cex.lab=1.3, cex.axis=1.3, mfrow=c(1,3), mar=c(4,4,1,0.5))
-  
-  for( chan in channels ){
-    man_class = mdat[mdat$Channel==chan & mdat$sampleID==pat, "classCONOR"]
-    
-    bayes_class_mat = as.matrix( fread( file.path(outputFolder, paste0(chan, "__", pat, "__CLASSIF.txt"))))
-    bayes_class = colMeans( bayes_class_mat )
-    
-    class_diff = man_class != as.numeric(bayes_class>0.5)
-    
-    bayes_postpred = as.data.frame( fread(  file.path(outputFolder, paste0(chan, "__", pat, "__POSTPRED.txt") ) ) )
-    
-    xlm = range( data[data$sampleID%in% c(ctrlIDs, pat) & data$Channel==mitochan, "Value"] ) + c(0,0.5)
-    ylm = range( data[data$sampleID%in% c(ctrlIDs, pat) & data$Channel!=mitochan, "Value"] ) + c(0,0.5)
-    
-    pi_est = round( colMeans(  fread(  file.path(outputFolder, paste0(chan, "__", pat, "__POST.txt")))[,"probdiff"]),3)
-    
-    plot(NA, xlim=xlm, ylim=ylm, 
-         xlab=paste0("log(", mitochan,")"), ylab=paste0("log(", chan, ")"),
-         main=bquote("E("*pi*"|Y)="*.(pi_est)))
-    
-    points( data[data$sampleID%in% ctrlIDs & data$Channel==mitochan, "Value"],
-            data[data$sampleID%in% ctrlIDs & data$Channel==chan, "Value"],
-            pch=20, col=alphaBlack(0.05), cex=0.3)
-    
-    xpat = data[data$sampleID==pat & data$Channel==mitochan, "Value"]
-    ypat = data[data$sampleID==pat & data$Channel==chan, "Value"]
-    points( xpat, ypat,
-            pch=20, col=classcols(bayes_class, alphaLevel=0.5), cex=0.5)
-    
-    # lines(bayes_postpred$mitochan, bayes_postpred$medNorm, 
-    #       col=alphaGreen(1.0), lty=1, lwd=2)
-    # lines(bayes_postpred$mitochan, bayes_postpred$lwrNorm, 
-    #       col=alphaGreen(1.0), lty=2, lwd=2)
-    # lines(bayes_postpred$mitochan, bayes_postpred$uprNorm, 
-    #       col=alphaGreen(1.0), lty=2, lwd=2)
-    
-    points( xpat[class_diff], ypat[class_diff],
-            pch=18, col="orange", cex=1.0)
-    
-    if( chan == channels[1] )
-      legend("topleft", 
-             col=c(alphaBlack(0.7), alphaBlue(0.7), alphaRed(0.7)),
-             pch=20, 
-             legend=c("Control", "Healthy", "Deficient"),
-             box.col=alphaBlack(0.0),
-             bg="transparent")
-  }
-  par(op)
-}
-dev.off()
 
 
 

@@ -12,15 +12,14 @@ library("data.table")
 library("rstan")
 library("stringr")
 
-folderName = "Output"
 
-dir.create(file.path(folderName), showWarnings = FALSE)
+dir.create(file.path("..", "Output"), showWarnings = FALSE)
 
 mitochan = "VDAC"
 channels = c("NDUFB8", "CYB", "MTCO1")
 nChan = length(channels)
 
-raw_data = read.csv(file.path("..", "..", "Data_prepped.csv"), header=TRUE)
+raw_data = read.csv(file.path("..", "Data", "Data_prepped.csv"), header=TRUE)
 
 raw_data = raw_data[,c("ID", "patient_id", mitochan, channels)]
 colnames(raw_data) = c("fibreID", "sampleID", mitochan, channels)
@@ -63,5 +62,5 @@ for (id in timeDF$dataID) {
   timeDF[timeDF$dataID==id, "inferenceTime"] = time["elapsed"]
 }
 
-write.table(timeDF, file=file.path("inferenceTime.txt"), 
+write.table(timeDF, file=file.path("..", "Output", "bayesInferenceTime.txt"), 
             col.names=TRUE, row.names=FALSE, sep="\t")

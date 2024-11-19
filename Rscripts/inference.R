@@ -8,9 +8,9 @@ library("data.table")
 library("rstan")
 library("stringr")
 
-folderName = "Output"
 
-dir.create(file.path(folderName), showWarnings = FALSE)
+dir.create(file.path("..", "Output"), showWarnings = FALSE)
+dir.create(file.path("..", "Output", "bayesInference"), showWarnings=FALSE)
 
 mitochan = "VDAC"
 channels = c("NDUFB8", "CYB", "MTCO1")
@@ -53,6 +53,7 @@ for (chan in channels) {
   }
 }
 
+# run with tau_def = 0.000001, ..., 1.0 for varying gamma value
 ncores = 6
 cl  = makeCluster(ncores)
 {
@@ -62,12 +63,12 @@ cl  = makeCluster(ncores)
     stan_inference, 
     warmup=40000, 
     iter=45000,
-    parameterVals = list(tau_def=0.1))
+    parameterVals = list(tau_def=0.0001))
 }
 stopCluster(cl)
 
 for( rt in names(output) ){
-  list_saver(output[[rt]], file.path(folderName, rt), rootSep="__")
+  list_saver(output[[rt]], file.path("..", "Output", "bayesInference", rt), rootSep="__")
 }
 
 

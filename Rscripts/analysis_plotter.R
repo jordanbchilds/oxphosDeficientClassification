@@ -10,12 +10,12 @@ library("stringr")
 # install.packages("../../../analysis2Dmito", type="source", repos=NULL)
 library("analysis2Dmito")
 
-dir.create("PDF", showWarnings=FALSE)
+dir.create(file.path("..", "PDF"), showWarnings=FALSE)
 
 mitochan = "VDAC"
 channels = c("NDUFB8", "MTCO1", "CYB")
 nChan = length(channels)
-raw_data = read.csv(file.path("..", "..", "Data_prepped.csv"), header=TRUE)
+raw_data = read.csv(file.path("..", "Data", "Data_prepped.csv"), header=TRUE)
 
 raw_data = raw_data[,c("ID", "patient_id", mitochan, channels)]
 colnames(raw_data) = c("fibreID", "sampleID", mitochan, channels)
@@ -31,15 +31,15 @@ sbjIDs = unique(data$sampleID)
 ctrlIDs = grep("C", sbjIDs, value=TRUE)
 ptsIDs = sbjIDs[!(sbjIDs %in% ctrlIDs)]
 
-postFolder = file.path("..", "OutputMaxESS", "stan_sampler")
-outputFolder = file.path("..", "PDF", "OutputMaxESS", "stan_sampler")
+postFolder = file.path("..", "Output", "bayesMaxESS")
+pdfFolder = file.path("..", "PDF", "bayesMaxESS")
 
-dir.create(outputFolder, showWarnings=FALSE)
+dir.create(pdfFolder, showWarnings=FALSE)
 
 roots = list.files(file.path(postFolder), pattern="_POST.txt")
 
 # ------ MCMC plot 
-pdf(file.path("..", "PDF", outputFolder,  "MCMCplot.pdf"), width=13, height=8)
+pdf(file.path(pdfFolder,  "MCMCplot.pdf"), width=13, height=8)
 {
   for (rt in roots) {
     chanpat_str = substr(rt, 1, nchar(rt)-10 )
@@ -61,7 +61,7 @@ pdf(file.path("..", "PDF", outputFolder,  "MCMCplot.pdf"), width=13, height=8)
 dev.off()
 
 # ------ postPlot
-pdf(file.path("..", "PDF", outputFolder,  "postPlot.pdf"), width=13, height=8)
+pdf(file.path(pdfFolder,  "postPlot.pdf"), width=13, height=8)
 {
   for (rt in roots) {
     chanpat_str = substr(rt, 1, nchar(rt)-10 )
@@ -139,7 +139,7 @@ for (patID in ptsIDs) {
     
     post = as.data.frame( fread( file.path( postFolder, paste0(root, "__POST.txt")) ) )
     
-    obsIDs = unique( dataPat$obsIDs )
+    obsIDs = unique( dataPat$obsID )
     
     for (id in obsIDs) {
       dataFibre = dataPat[dataPat$obsID==id, ]
@@ -151,7 +151,7 @@ for (patID in ptsIDs) {
   }
 }
 
-write.table(dataClass, file=file.path(postFolder, "data_prepped_withClassif.txt"), 
+write.table(dataClass, file=file.path("..", "Data", "data_prepped_withBayesClassif.txt"), 
             sep="\t", col.names=TRUE, row.names=FALSE)
 
 

@@ -1,4 +1,4 @@
-"id"	"patient_type"	"patient_id"	"channel"	"value"	"cell_id"	"classCONOR"	"classJBC"	"classAEV"	"classJOINT"
+"fibreID"	"sbjType"	"sampleID"	"Channel"	"Value"	"uniqueFibreID"	"classCONOR"	"classJBC"	"classAEV"	"classJOINT"
 1	"control"	"C01"	"CYB"	4.149206349	"C01_1"	0	0	0	0
 1	"control"	"C01"	"MTCO1"	13.54285714	"C01_1"	0	0	0	0
 1	"control"	"C01"	"NDUFB8"	5.066666667	"C01_1"	0	0	0	0
