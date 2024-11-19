@@ -6,25 +6,15 @@ library("tidyr")
 library("devtools")
 library("parallel")
 library("stringr")
-library("bayestestR")
+library("HDInterval")
 
 # install.packages("../../../analysis2Dmito", type="source", repos=NULL)
 library("analysis2Dmito")
 
-alphaCol = function (col, alpha) {
-  if (is.numeric(col)) {
-    rgbVals = col2rgb(palette()[i])
-  } 
-  if (is.character(col)) {
-    rgbVals = col2rgb(col)
-  }
-  return( rgb(red=rgbVals[1] / 255, green=rgbVals[2] / 255, blue=rgbVals[3] / 255, alpha=alpha) )
-}
-
-parameterFile = file.path("..", "Data", "trueParameters_synData04.txt")
-outputFolder = file.path("..", "OutputMaxESS", "stan_sampler_synData04")
-freqOutputFolder = file.path("..", "Output", "frequentistLinearModel_synData04")
-dataFolder = file.path("..", "Data", "synData04")
+parameterFile = file.path("..", "Data", "trueParameters_synData01.txt")
+outputFolder = file.path("..", "Output", "bayesMaxESS_synData01")
+freqOutputFolder = file.path("..", "Output", "frequentistAnalysis_synData01")
+dataFolder = file.path("..", "Data", "synData01")
 
 dir.create(file.path("..", "PDF", basename(outputFolder)), showWarnings=FALSE)
 dir.create(file.path("..", "PDF"), showWarnings=FALSE)
@@ -35,10 +25,6 @@ nChan = length(channels)
 
 ctrlIDs = paste0("C0", 1:4)
 ptsIDs = c(paste0("P0", 1:7), "P09", paste0("P", 10:12))
-
-######################
-### LET'S START HERE
-######################
 
 roots = list.files(outputFolder, pattern="__POST.txt")
 
@@ -281,8 +267,8 @@ png(file.path("..", "PDF", basename(outputFolder), "postPODdifference.png"),
       
       id = paste0(patID,"__", chan)
       piPosterior[[id]] = post$probdiff - trueParameters[trueParameters$Channel==chan & trueParameters$sampleID==patID, "probdiff"]
-      hdInterval = hdi(piPosterior[[id]], ci=0.95)
-      outsideInterval[id] = (0.0 < hdInterval$CI_low) | (0.0 > hdInterval$CI_high) 
+      hdInterval = HDInterval::hdi(piPosterior[[id]], credMass=0.95)
+      outsideInterval[id] = (0.0 < hdInterval["lower"]) | (0.0 > hdInterval["upper"]) 
     }
   }
   
@@ -362,8 +348,8 @@ png(file.path("..", "PDF", basename(outputFolder), "piComparison_synData.png"),
       freqEst_diff[[root]] = piEst - trueParameters[trueParameters$Channel==chan & trueParameters$sampleID==patID, "probdiff"]
       
       piPosterior_diff[[root]] = post$probdiff - trueParameters[trueParameters$Channel==chan & trueParameters$sampleID==patID, "probdiff"]
-      hdInterval = hdi(piPosterior_diff[[root]], ci=0.99)
-      outsideInterval[root] = (0.0 < hdInterval$CI_low) | (0.0 > hdInterval$CI_high) 
+      hdInterval = HDInterval::hdi(piPosterior_diff[[root]], credMass=0.99)
+      outsideInterval[root] = (0.0 < hdInterval["lower"]) | (0.0 > hdInterval["upper"]) 
       
       if (freqEst_diff[[root]] < 0.0) {
         freqProb[[root]] = sum(piPosterior_diff[[root]] < freqEst_diff[[root]]) / length(piPosterior_diff[[root]])

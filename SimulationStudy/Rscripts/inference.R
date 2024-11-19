@@ -10,11 +10,16 @@ library("stringr")
 library("coda")
 library("mcmcse")
 
-dataFolder = file.path("..", "Data", "synCVData03")
-bayesFolder = file.path("..", "Output", "stan_sampler_synCVData03")
-maxESSFolder = file.path("..", "OutputMaxESS", "stan_sampler_synCVData03")
-freqFolder = file.path("..", "Output", "frequentistLinearModel_synCVData03")
+dir.create(file.path("..", "Output"), showWarnings = FALSE)
 
+dataFolder = file.path("..", "Data", "synData01")
+bayesFolder = file.path("..", "Output", "bayesInference_synData01")
+maxESSFolder = file.path("..", "Output", "bayesMaxESS_synData01")
+freqFolder = file.path("..", "Output", "frequentistAnalysis_synData01")
+
+dir.create(bayesFolder, showWarnings = FALSE)
+dir.create(maxESSFolder, showWarnings = FALSE)
+dir.create(freqFolder, showWarnings = FALSE)
 
 validate = FALSE
 
@@ -65,8 +70,8 @@ cl  = makeCluster(ncores)
     cl,
     data_list,
     stan_inference, 
-    warmup=20000, 
-    iter=22000)
+    warmup=10, #20000, 
+    iter=15) #22000)
 }
 stopCluster(cl)
 
@@ -77,8 +82,6 @@ for (rt in names(output)) {
 # ---------------------------
 # --- SAVE MAX ESS OUTPUT
 # ---------------------------
-
-dir.create(maxESSFolder, showWarnings = FALSE)
 
 for (chan in channels) {
   for (pat in ptsIDs) {
@@ -110,8 +113,6 @@ for (chan in channels) {
 # ---------------------------
 # --- FREQUENTIST ANALYSIS
 # ---------------------------
-
-dir.create(freqFolder, showWarnings = FALSE)
 
 for (chan in channels) {
   for (patID in ptsIDs) {
